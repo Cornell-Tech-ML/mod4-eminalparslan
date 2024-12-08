@@ -30,12 +30,16 @@ class Module:
         return list(m.values())
 
     def train(self) -> None:
-        """Set the mode of this module and all descendent modules to `train`."""
-        raise NotImplementedError("Need to include this file from past assignment.")
+        """Set the `training` flag of this and descendents to true."""
+        self.training = True
+        for m in self.modules():
+            m.train()
 
     def eval(self) -> None:
-        """Set the mode of this module and all descendent modules to `eval`."""
-        raise NotImplementedError("Need to include this file from past assignment.")
+        """Set the `training` flag of this and descendent to false."""
+        self.training = False
+        for m in self.modules():
+            m.eval()
 
     def named_parameters(self) -> Sequence[Tuple[str, Parameter]]:
         """Collect all the parameters of this module and its descendents.
@@ -45,11 +49,17 @@ class Module:
             The name and `Parameter` of each ancestor parameter.
 
         """
-        raise NotImplementedError("Need to include this file from past assignment.")
+        parameters = [(k, v) for k, v in self._parameters.items()]
+        for s, m in self._modules.items():
+            parameters.extend((f"{s}.{k}", v) for k, v in m.named_parameters())
+        return parameters
 
     def parameters(self) -> Sequence[Parameter]:
         """Enumerate over all the parameters of this module and its descendents."""
-        raise NotImplementedError("Need to include this file from past assignment.")
+        parameters = [v for v in self._parameters.values()]
+        for m in self.modules():
+            parameters.extend(m.parameters())
+        return parameters
 
     def add_parameter(self, k: str, v: Any) -> Parameter:
         """Manually add a parameter. Useful helper for scalar parameters.
@@ -85,6 +95,7 @@ class Module:
         return None
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        """Call the module forward pass with the given arguments."""
         return self.forward(*args, **kwargs)
 
     def __repr__(self) -> str:

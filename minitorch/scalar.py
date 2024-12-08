@@ -8,16 +8,16 @@ import numpy as np
 from dataclasses import field
 from .autodiff import Context, Variable, backpropagate, central_difference
 from .scalar_functions import (
-    EQ,
-    LT,
-    Add,
-    Exp,
     Inv,
-    Log,
     Mul,
-    Neg,
-    ReLU,
     ScalarFunction,
+    Add,
+    Neg,
+    Lt,
+    Eq,
+    Relu,
+    Exp,
+    Log,
     Sigmoid,
 )
 
@@ -112,21 +112,34 @@ class Scalar:
         return self.history is not None and self.history.last_fn is None
 
     def is_constant(self) -> bool:
+        """True if this variable is a constant."""
         return self.history is None
 
     @property
     def parents(self) -> Iterable[Variable]:
-        """Get the variables used to create this one."""
+        """Returns the parents of this variable."""
         assert self.history is not None
         return self.history.inputs
 
     def chain_rule(self, d_output: Any) -> Iterable[Tuple[Variable, Any]]:
+        """Applies the chain rule to the Scalar and its parents.
+
+        Args:
+        ----
+            d_output: The derivative of the output with respect to this scalar.
+
+        Returns:
+        -------
+            An iterable of tuples, where each tuple contains a parent variable and the derivative of the output with respect to that variable.
+
+        """
         h = self.history
         assert h is not None
         assert h.last_fn is not None
         assert h.ctx is not None
 
-        raise NotImplementedError("Need to include this file from past assignment.")
+        derivatives = h.last_fn._backward(h.ctx, d_output)
+        return list(zip(h.inputs, derivatives))
 
     def backward(self, d_output: Optional[float] = None) -> None:
         """Calls autodiff to fill in the derivatives for the history of this object.
@@ -141,17 +154,52 @@ class Scalar:
             d_output = 1.0
         backpropagate(self, d_output)
 
-    raise NotImplementedError("Need to include this file from past assignment.")
+    def __add__(self, b: ScalarLike) -> Scalar:
+        return Add.apply(self, b)
+
+    def __sub__(self, b: ScalarLike) -> Scalar:
+        return Add.apply(self, -b)
+
+    def __rsub__(self, b: ScalarLike) -> Scalar:
+        return -(self - b)
+
+    def __neg__(self) -> Scalar:
+        return Neg.apply(self)
+
+    def __lt__(self, b: ScalarLike) -> Scalar:
+        return Lt.apply(self, b)
+
+    def __gt__(self, b: ScalarLike) -> Scalar:
+        return Lt.apply(b, self)
+
+    def __eq__(self, b: ScalarLike) -> Scalar:
+        return Eq.apply(self, b)
+
+    def relu(self) -> Scalar:
+        r"""Rectified linear unit function $f(x) = \max(0, x)$"""
+        return Relu.apply(self)
+
+    def exp(self) -> Scalar:
+        r"""Exponential function $f(x) = e^x$"""
+        return Exp.apply(self)
+
+    def log(self) -> Scalar:
+        r"""Log function $f(x) = log(x)$"""
+        return Log.apply(self)
+
+    def sigmoid(self) -> Scalar:
+        r"""Sigmoid function $f(x) = \frac{1}{1 + e^{-x}}$"""
+        return Sigmoid.apply(self)
 
 
 def derivative_check(f: Any, *scalars: Scalar) -> None:
     """Checks that autodiff works on a python function.
     Asserts False if derivative is incorrect.
 
-    Parameters
-    ----------
+    Args:
+    ----
         f : function from n-scalars to 1-scalar.
-        *scalars  : n input scalar values.
+        *scalars : n input scalar values.
 
     """
     out = f(*scalars)
