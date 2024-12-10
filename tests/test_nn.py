@@ -7,6 +7,8 @@ from minitorch import Tensor
 from .strategies import assert_close
 from .tensor_strategies import tensors
 
+from minitorch.tensor_functions import rand
+
 
 @pytest.mark.task4_3
 @given(tensors(shape=(1, 1, 4, 4)))
@@ -41,32 +43,10 @@ def test_max(t: Tensor) -> None:
         for j in range(4):
             assert_close(out[i, 0, j], max([t[i, k, j] for k in range(3)]))
 
-    # manual gradient check
-    x = minitorch.tensor([[1.0, 2.0, 1.0], [2.0, 1.0, 1.0]], requires_grad=True)
+    # add noise to remove ties
+    t = t + rand(t.shape)
 
-    y = minitorch.max(x, dim=1)
-    y.sum().backward()
-
-    # expected gradient:
-    # - for max values (2.0): gradient should be 1.0
-    # - for non-max values: gradient should be 0.0
-    expected_grad = minitorch.tensor([[0.0, 1.0, 0.0], [1.0, 0.0, 0.0]])
-
-    assert x.grad is not None
-    assert_close(x.grad.item(), expected_grad.item())
-
-    # test case with multiple max values
-    x = minitorch.tensor([[2.0, 2.0, 1.0]], requires_grad=True)
-    y = minitorch.max(x, dim=1)
-    y.sum().backward()
-
-    # expected gradient:
-    # - for equal max values: gradient should be 0.5 each
-    # - for non-max values: gradient should be 0.0
-    expected_grad = minitorch.tensor([[0.5, 0.5, 0.0]])
-
-    assert x.grad is not None
-    assert_close(x.grad.item(), expected_grad.item())
+    minitorch.grad_check(lambda t: minitorch.max(t, 1), t)
 
 
 @pytest.mark.task4_4
