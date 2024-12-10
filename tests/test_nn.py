@@ -31,8 +31,42 @@ def test_avg(t: Tensor) -> None:
 @pytest.mark.task4_4
 @given(tensors(shape=(2, 3, 4)))
 def test_max(t: Tensor) -> None:
-    # TODO: Implement for Task 4.4.
-    raise NotImplementedError("Need to implement for Task 4.4")
+    out = minitorch.max(t.contiguous(), 2)
+    for i in range(2):
+        for j in range(3):
+            assert_close(out[i, j, 0], max([t[i, j, k] for k in range(4)]))
+
+    out = minitorch.max(t, 1)
+    for i in range(2):
+        for j in range(4):
+            assert_close(out[i, 0, j], max([t[i, k, j] for k in range(3)]))
+
+    # manual gradient check
+    x = minitorch.tensor([[1.0, 2.0, 1.0], [2.0, 1.0, 1.0]], requires_grad=True)
+
+    y = minitorch.max(x, dim=1)
+    y.sum().backward()
+
+    # expected gradient:
+    # - for max values (2.0): gradient should be 1.0
+    # - for non-max values: gradient should be 0.0
+    expected_grad = minitorch.tensor([[0.0, 1.0, 0.0], [1.0, 0.0, 0.0]])
+
+    assert x.grad is not None
+    assert_close(x.grad.item(), expected_grad.item())
+
+    # test case with multiple max values
+    x = minitorch.tensor([[2.0, 2.0, 1.0]], requires_grad=True)
+    y = minitorch.max(x, dim=1)
+    y.sum().backward()
+
+    # expected gradient:
+    # - for equal max values: gradient should be 0.5 each
+    # - for non-max values: gradient should be 0.0
+    expected_grad = minitorch.tensor([[0.5, 0.5, 0.0]])
+
+    assert x.grad is not None
+    assert_close(x.grad.item(), expected_grad.item())
 
 
 @pytest.mark.task4_4
